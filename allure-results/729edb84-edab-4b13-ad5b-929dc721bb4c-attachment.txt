@@ -1,2 +1,0 @@
-[INFO] [2026-04-01T14:48:36.367Z] [TOOLSHOP:STAGING] Authenticated API client initialized
-[STEP] [2026-04-01T14:48:36.370Z] [TOOLSHOP:STAGING] POST create resource

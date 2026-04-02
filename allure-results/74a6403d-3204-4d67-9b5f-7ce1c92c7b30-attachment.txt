@@ -1,2 +1,0 @@
-[INFO] [2026-04-02T11:56:00.978Z] [TOOLSHOP:STAGING] Authenticated API client initialized
-[STEP] [2026-04-02T11:56:00.978Z] [TOOLSHOP:STAGING] Health check

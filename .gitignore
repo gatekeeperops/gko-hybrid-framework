@@ -1,0 +1,12 @@
+node_modules/
+test-results/
+playwright-report/
+allure-results/
+allure-report/
+.auth/
+.env
+*.env.local
+temp-codegen.ts
+temp-codegen2.ts
+temp-error.ts
+dist/

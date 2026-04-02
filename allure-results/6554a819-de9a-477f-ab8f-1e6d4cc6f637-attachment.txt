@@ -1,2 +1,0 @@
-[INFO] [2026-04-01T14:48:33.389Z] [TOOLSHOP:STAGING] Authenticated API client initialized
-[STEP] [2026-04-01T14:48:33.390Z] [TOOLSHOP:STAGING] Getting current user
