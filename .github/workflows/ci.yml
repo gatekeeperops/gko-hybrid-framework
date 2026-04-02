@@ -1,0 +1,194 @@
+# PURPOSE: GitHub Actions CI pipeline.
+# WHY: Runs all tests automatically on every push and PR.
+# This is the core retainer value — clients get automated
+# quality gates on every release without manual intervention.
+# Secrets are stored in GitHub repo settings, never in code.
+
+name: GKO Hybrid Framework CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 6am UTC — production monitoring
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub UI
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ── API Tests ────────────────────────────────────────────
+  api-tests:
+    name: API Tests
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run API tests
+        run: npx playwright test --project=api
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          AUTH_TYPE: ${{ secrets.AUTH_TYPE }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          CI: true
+
+      - name: Upload API test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: |
+            playwright-report/
+            allure-results/
+          retention-days: 30
+
+  # ── UI Tests ─────────────────────────────────────────────
+  ui-tests:
+    name: UI Tests
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run UI tests
+        run: npx playwright test --project=ui
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          AUTH_TYPE: ${{ secrets.AUTH_TYPE }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          HEADLESS: true
+          CI: true
+
+      - name: Upload UI test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-test-results
+          path: |
+            playwright-report/
+            allure-results/
+            test-results/
+          retention-days: 30
+
+  # ── Hybrid Tests ─────────────────────────────────────────
+  hybrid-tests:
+    name: Hybrid Tests
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests]
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Hybrid tests
+        run: npx playwright test --project=hybrid
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          AUTH_TYPE: ${{ secrets.AUTH_TYPE }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          HEADLESS: true
+          CI: true
+
+      - name: Upload Hybrid test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hybrid-test-results
+          path: |
+            playwright-report/
+            allure-results/
+            test-results/
+          retention-days: 30
+
+  # ── Allure Report ─────────────────────────────────────────
+  publish-report:
+    name: Publish Allure Report
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests, hybrid-tests]
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results
+
+      - name: Merge allure results
+        run: |
+          mkdir -p allure-results
+          find all-results -name "*.json" -o -name "*.xml" | \
+          xargs -I {} cp {} allure-results/ 2>/dev/null || true
+
+      - name: Generate Allure report
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          gh_pages: gh-pages
+          allure_history: allure-history
+
+      - name: Deploy Allure report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-report

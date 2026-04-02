@@ -1,0 +1,34 @@
+{
+  "name": "gko-hybrid-framework",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:ui": "playwright test --project=ui",
+    "test:hybrid": "playwright test --project=hybrid",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "allure generate allure-results --clean -o allure-report && allure open allure-report",
+    "report:clean": "rimraf allure-results allure-report playwright-report test-results",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.59.0",
+    "@types/node": "^25.5.0",
+    "allure-commandline": "^2.38.1",
+    "allure-playwright": "^3.6.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "zod": "^4.3.6"
+  }
+}

@@ -1,0 +1,2 @@
+[INFO] [2026-04-01T14:48:33.353Z] [TOOLSHOP:STAGING] API client initialized
+[STEP] [2026-04-01T14:48:33.355Z] [TOOLSHOP:STAGING] API login with invalid creds: 

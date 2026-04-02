@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  playwright:
+    build: .
+    environment:
+      - CLIENT_NAME=${CLIENT_NAME:-toolshop}
+      - ENV_NAME=${ENV_NAME:-staging}
+      - BASE_URL=${BASE_URL}
+      - API_BASE_URL=${API_BASE_URL}
+      - AUTH_TYPE=${AUTH_TYPE:-bearer}
+      - TEST_USERNAME=${TEST_USERNAME}
+      - TEST_PASSWORD=${TEST_PASSWORD}
+      - HEADLESS=true
+      - SLOW_MO=0
+      - TIMEOUT=30000
+    volumes:
+      - ./allure-results:/app/allure-results
+      - ./test-results:/app/test-results
+    command: npx playwright test --reporter=line,allure-playwright

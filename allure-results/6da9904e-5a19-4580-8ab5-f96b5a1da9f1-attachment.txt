@@ -1,0 +1,1 @@
+[INFO] [2026-04-02T11:55:59.211Z] [TOOLSHOP:STAGING] Authenticated API client initialized
