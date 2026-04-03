@@ -15,7 +15,6 @@ on:
     # Run daily at 6am UTC — production monitoring
     - cron: '0 6 * * *'
   workflow_dispatch:
-    # Allow manual trigger from GitHub UI
 
 env:
   NODE_VERSION: '20'
@@ -25,7 +24,6 @@ jobs:
   api-tests:
     name: API Tests
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
     steps:
       - name: Checkout
@@ -39,17 +37,30 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        - name: Debug env vars
+        run: |
+          echo "TEST_USERNAME length: ${#TEST_USERNAME}"
+          echo "TEST_PASSWORD length: ${#TEST_PASSWORD}"
+          echo "AUTH_TYPE: $AUTH_TYPE"
+          echo "API_BASE_URL: $API_BASE_URL"
+        env:
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          AUTH_TYPE: bearer
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
 
       - name: Run API tests
         run: npx playwright test --project=api
         env:
+          CLIENT_NAME: toolshop
+          ENV_NAME: staging
           BASE_URL: ${{ secrets.BASE_URL }}
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          AUTH_TYPE: ${{ secrets.AUTH_TYPE }}
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          API_TOKEN: ${{ secrets.API_TOKEN }}
-          ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          AUTH_TYPE: bearer
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          HEADLESS: true
+          TIMEOUT: 30000
           CI: true
 
       - name: Upload API test results
@@ -66,7 +77,6 @@ jobs:
   ui-tests:
     name: UI Tests
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
     steps:
       - name: Checkout
@@ -87,14 +97,15 @@ jobs:
       - name: Run UI tests
         run: npx playwright test --project=ui
         env:
+          CLIENT_NAME: toolshop
+          ENV_NAME: staging
           BASE_URL: ${{ secrets.BASE_URL }}
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          AUTH_TYPE: ${{ secrets.AUTH_TYPE }}
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          API_TOKEN: ${{ secrets.API_TOKEN }}
-          ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          AUTH_TYPE: bearer
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           HEADLESS: true
+          TIMEOUT: 30000
           CI: true
 
       - name: Upload UI test results
@@ -113,7 +124,6 @@ jobs:
     name: Hybrid Tests
     runs-on: ubuntu-latest
     needs: [api-tests, ui-tests]
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
     steps:
       - name: Checkout
@@ -134,14 +144,15 @@ jobs:
       - name: Run Hybrid tests
         run: npx playwright test --project=hybrid
         env:
+          CLIENT_NAME: toolshop
+          ENV_NAME: staging
           BASE_URL: ${{ secrets.BASE_URL }}
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          AUTH_TYPE: ${{ secrets.AUTH_TYPE }}
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          API_TOKEN: ${{ secrets.API_TOKEN }}
-          ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          AUTH_TYPE: bearer
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           HEADLESS: true
+          TIMEOUT: 30000
           CI: true
 
       - name: Upload Hybrid test results
