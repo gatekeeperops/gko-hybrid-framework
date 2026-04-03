@@ -37,7 +37,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        - name: Debug env vars
+
+      - name: Debug env vars
         run: |
           echo "TEST_USERNAME length: ${#TEST_USERNAME}"
           echo "TEST_PASSWORD length: ${#TEST_PASSWORD}"
