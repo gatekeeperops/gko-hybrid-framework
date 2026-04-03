@@ -116,6 +116,7 @@ jobs:
     name: Hybrid Tests
     runs-on: ubuntu-latest
     needs: [api-tests, ui-tests]
+    if: always()
 
     steps:
       - name: Checkout
