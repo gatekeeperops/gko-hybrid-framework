@@ -27,7 +27,7 @@ export const ENV = {
   API_BASE_URL: optional('API_BASE_URL', process.env.BASE_URL || ''),
 
   // Auth — use TEST_USERNAME not USERNAME (Windows reserved variable)
-  AUTH_TYPE: optional('AUTH_TYPE', 'basic'),
+  AUTH_TYPE: optional('AUTH_TYPE', 'bearer'),
   USERNAME: optional('TEST_USERNAME', ''),
   PASSWORD: optional('TEST_PASSWORD', ''),
   API_TOKEN: optional('API_TOKEN', ''),
