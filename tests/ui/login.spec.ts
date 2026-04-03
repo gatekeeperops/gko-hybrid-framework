@@ -3,6 +3,13 @@
 // invalid credentials error, empty field validation, and
 // post-login state. These are the first UI tests to run when
 // onboarding a new client.
+//
+// KEY DESIGN: Each test is fully independent.
+// WHY: test.use({ storageState: { cookies: [], origins: [] } })
+// clears any saved auth state so login tests always hit the
+// actual login page — not a cached authenticated session.
+// authenticatedPage fixture performs a fresh login per test —
+// no shared state file, no stale session risk.
 
 import { test, expect } from '@fixtures/auth.fixture';
 import { LoginPage } from '@pages/login.page';
@@ -10,10 +17,8 @@ import { CLIENT_CONFIG } from '@config/client.config';
 
 test.describe('UI Login', () => {
 
-  // Clear saved auth state before this suite so each test
-  // starts from a clean unauthenticated browser session.
-  // WHY: auth.fixture reuses saved state — login tests need
-  // to actually hit the login page, not skip straight to dashboard.
+  // WHY: clear any saved auth state so unauthenticated tests
+  // always start from a clean browser session
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test('should login with valid credentials and redirect away from login', async ({ page }) => {
@@ -25,7 +30,8 @@ test.describe('UI Login', () => {
       CLIENT_CONFIG.auth.password
     );
 
-    // After login, URL should not contain /login
+    // WHY waitForURL not URL check: loginAndWait already waits for
+    // redirect — this assert confirms final URL state
     expect(page.url()).not.toContain('/login');
   });
 
@@ -35,7 +41,8 @@ test.describe('UI Login', () => {
     await loginPage.goto();
     await loginPage.login('invalid@email.com', 'wrongpassword');
 
-    // Error message should appear — selector handles multiple client patterns
+    // WHY assertLoginError: waits for API response before checking
+    // error element — avoids race between submit and DOM update
     await loginPage.assertLoginError();
   });
 
@@ -45,42 +52,57 @@ test.describe('UI Login', () => {
     await loginPage.goto();
     await loginPage.login('', '');
 
-    // Either stays on login page or shows error
+    // Toolshop either stays on login page or shows inline error
+    // WHY flexible assertion: both are valid empty-field responses
     const url = page.url();
     const staysOnLogin = url.includes('/login');
-    const hasError = await page.locator('[class*="error"], [class*="alert"], [role="alert"]').isVisible().catch(() => false);
+    const hasError = await page
+      .locator('[class*="error"], [class*="alert"], [role="alert"]')
+      .isVisible()
+      .catch(() => false);
 
     expect(staysOnLogin || hasError).toBe(true);
   });
 
   test('should redirect to login when accessing protected route unauthenticated', async ({ page }) => {
-    // Navigate to a protected route without auth
     await page.goto(`${CLIENT_CONFIG.baseURL}/account`);
 
-    // Should redirect to login
-    await page.waitForURL(url => url.toString().includes('/login'), {
-      timeout: CLIENT_CONFIG.browser.timeout,
-    });
+    // WHY waitForURL: auto-wait for redirect to complete before asserting
+    await page.waitForURL(
+      url => url.toString().includes('/login'),
+      { timeout: CLIENT_CONFIG.browser.timeout }
+    );
+
     expect(page.url()).toContain('/login');
   });
 
   test('should persist login across page navigation', async ({ authenticatedPage }) => {
-    // authenticatedPage fixture handles login via saved auth state
+    // WHY authenticatedPage: fixture performs fresh login — no shared
+    // state file, guaranteed clean authenticated session per test
     await authenticatedPage.goto(`${CLIENT_CONFIG.baseURL}/account`);
 
-    // Should stay on account page, not redirect to login
+    // WHY waitForURL: confirm navigation completed before asserting
+    await authenticatedPage.waitForURL(
+      url => !url.toString().includes('/login'),
+      { timeout: CLIENT_CONFIG.browser.timeout }
+    );
+
     expect(authenticatedPage.url()).not.toContain('/login');
   });
 
   test('should logout successfully', async ({ authenticatedPage }) => {
     const loginPage = new LoginPage(authenticatedPage);
 
-    // Navigate to a page that has a logout option
     await authenticatedPage.goto(`${CLIENT_CONFIG.baseURL}/account`);
 
-    await loginPage.logout();
+    // WHY waitForURL before logout: confirm we are on account page
+    // before interacting with nav — avoids acting on wrong page state
+    await authenticatedPage.waitForURL(
+      url => !url.toString().includes('/login'),
+      { timeout: CLIENT_CONFIG.browser.timeout }
+    );
 
-    // After logout should redirect to login
+    await loginPage.logout();
     await loginPage.assertLoggedOut();
   });
 

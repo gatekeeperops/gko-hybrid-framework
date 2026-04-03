@@ -9,31 +9,26 @@ import { CLIENT_CONFIG } from '@config/client.config';
 import { logger } from '@utils/logger';
 
 export class LoginPage extends BasePage {
-  // Selectors — update per client if needed
   private selectors = {
-    // data-test selectors take priority — most reliable, framework-agnostic
-    // Fallbacks handle clients without data-test attributes
     emailInput: '[data-test="email"], [name="email"], [name="username"], #email, #username, [type="email"]',
     passwordInput: '[data-test="password"], [name="password"], #password, [type="password"]',
     submitButton: '[data-test="login-submit"]',
     errorMessage: '[data-test="login-error"]',
-    logoutButton: '[data-test="nav-sign-out"], button:has-text("Logout"), button:has-text("Sign out"), [href*="logout"]',
+    navMenu: '[data-test="nav-menu"]',
+    signOut: '[data-test="nav-sign-out"]',
+    signIn: '[data-test="nav-sign-in"]',
   };
 
   constructor(page: Page) {
     super(page);
   }
 
-  // ── Actions ────────────────────────────────────────────
-
   async goto(): Promise<void> {
-    // Toolshop: navigate to homepage, click sign-in nav to reach login form
     await this.navigate('/');
     await this.click(
       this.page.locator('[data-test="nav-sign-in"]'),
       'nav sign-in'
     );
-    // Wait for login form to be ready
     await this.page.locator('[data-test="email"]').waitFor({
       state: 'visible',
       timeout: CLIENT_CONFIG.browser.timeout,
@@ -66,23 +61,22 @@ export class LoginPage extends BasePage {
     password: string = CLIENT_CONFIG.auth.password
   ): Promise<void> {
     await this.login(username, password);
-    // WHY: Wait for either admin nav-menu or customer nav-user-menu
-    await this.page.locator(
-      '[data-test="nav-menu"], [data-test="nav-user-menu"]'
-    ).first().waitFor({
+    // WHY nav-user-menu not waitForURL: Toolshop uses client-side
+    // routing — URL does not change after login. The nav-user-menu
+    // appearing is the reliable post-login DOM signal.
+    await this.page.locator('[data-test="nav-user-menu"]').waitFor({
       state: 'visible',
       timeout: CLIENT_CONFIG.browser.timeout,
     });
     logger.info('Login successful');
   }
-  
+
   async assertLoginError(message?: string): Promise<void> {
-    // WHY: Wait for network response before checking error — API call takes ~1s
     await this.page.waitForResponse(
       response => response.url().includes('/users/login'),
       { timeout: 10000 }
-    ).catch(() => {}); // ignore if already completed
-  
+    ).catch(() => {});
+
     const errorLocator = this.page.locator('[data-test="login-error"]');
     await this.assertVisible(errorLocator, 'error message');
     if (message) {
@@ -92,17 +86,22 @@ export class LoginPage extends BasePage {
 
   async logout(): Promise<void> {
     logger.step('Logging out');
-    // WHY: nav-menu is a dropdown toggle — click it to expand, then click sign-out
-    // Use force click to bypass visibility check on the dropdown item
-    await this.page.locator('[data-test="nav-menu"]').click();
-    await this.page.locator('[data-test="nav-sign-out"]').click({ force: true });
-    await this.page.locator('[data-test="nav-sign-in"]').waitFor({
+    // Open nav dropdown
+    await this.page.locator(this.selectors.navMenu).click();
+    // WHY: wait for visibility before clicking — avoids force click
+    // which bypasses Playwright actionability checks
+    await this.page.locator(this.selectors.signOut).waitFor({
+      state: 'visible',
+      timeout: CLIENT_CONFIG.browser.timeout,
+    });
+    await this.page.locator(this.selectors.signOut).click();
+    // Wait for sign-in nav to confirm logout completed
+    await this.page.locator(this.selectors.signIn).waitFor({
       state: 'visible',
       timeout: CLIENT_CONFIG.browser.timeout,
     });
     logger.info('Logged out successfully');
   }
-
 
   async assertLoggedIn(): Promise<void> {
     await this.page.waitForURL(
